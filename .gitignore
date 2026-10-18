@@ -1,0 +1,22 @@
+# 个人草稿不进仓库，只保留目录占位与说明
+# 注意：不能写成 workspace/projects/**，那会把目录本身排除掉，
+# 下面的 .gitkeep 例外就失效了（git 不会进被排除的目录去找文件）。
+workspace/projects/*/*
+!workspace/projects/*/.gitkeep
+
+# 你的个人事实库（填完后含隐私，别提交）
+workspace/facts/个人事实库.md
+
+# 你的旧作样本（含隐私，别提交）
+workspace/style-samples/*
+!workspace/style-samples/README.md
+
+# 备份与缓存
+*.bak
+*.bak-v1
+*.bak-*
+__pycache__/
+*.pyc
+.DS_Store
+Thumbs.db
+node_modules/

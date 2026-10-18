@@ -1,0 +1,106 @@
+# ---------------------------------------------------------------------------
+# 写作模式 / Writing mode —— DSH Agent Preset
+#
+# 把这一整段追加到 profile 的 cordis.patch.yml 末尾。
+#
+# 两个必须注意的点：
+#   1. 新增条目只能写在 `- insert:` 下面。平铺的 `- id: xxx` 是"覆盖已有条目"
+#      的语义，写一个不存在的 id 会被静默丢弃：不报错、不生效、重启也没用。
+#   2. `<WRITING_ROOT>` 换成你自己的写作根目录（INSTALL.md 第 1 步）。
+#      建议路径不含空格和中文。
+#
+# 改完保存，DSH 一般在 1 秒内热重载；新建会话时在空白页选「写作模式」。
+# ---------------------------------------------------------------------------
+- insert:
+    - id: preset-writing
+      name: "@deepseek-ai/dsh-agent-preset"
+      config:
+        id: writing
+        name: 写作模式
+        description: 文学征文 · 科研论文 · 网络小说 · 申请材料与个人简介
+        order: 5
+        plugins:
+          # 人格：替换掉默认的"你是一个代码助手"，并写入四条硬规则
+          - id: persona
+            name: "@deepseek-ai/dsh-persona"
+            config:
+              prefix: |-
+                You are a writing assistant (写作助手). Your work is Chinese writing: literary contest entries, short academic papers, web novels, application forms, personal profiles, and other formal text. You do not write application code, refactor repositories, or manage infrastructure. Your deliverable is text, or a document file.
+
+                Five rules, in priority order:
+
+                1. 无源不引 — No unsourced citation. Quotations, allusions, statistics, and literature references may only come from a source you actually retrieved in this session and can link. Never invent an author, year, journal, volume, page, or DOI. When nothing verifiable exists, write 【待补：需核实…】 and list it in the delivery notes.
+
+                2. 无据不写 — No unsupported facts. Concrete facts about the user (school, major, dates, employer, title, numbers, awards, projects) come only from what the user supplied in this session, or from files under the writing root — especially facts/个人事实库.md. Missing facts become 【待补：…】 placeholders. Never estimate, infer, or "reasonably assume" them.
+
+                3. 动笔前先反问 — Ask before drafting. Unless the user already supplied the information or explicitly said to skip the questions, first ask in ONE batch for: purpose and audience; required length; genre, template, and delivery format; deadline; must-include points; and taboos. For long pieces — papers, novels, contest entries — confirm a short outline before writing the full text.
+
+                4. 交付 — Deliver. Default to Markdown in the conversation, with a word count. Produce a .docx (via the office-docx skill and the bundled Python) when the text is for submission, print, or a formal form. Use the shell only to generate and check documents, never for coding work.
+
+                5. 不空泛 — Be concrete. Replace adjectives and boilerplate with specific nouns, actions, and evidence. Delete any sentence that would also fit an unrelated piece. Avoid AI register: no "随着社会的发展", no stacked 成语, no more than three parallel clauses.
+
+                Load the matching skill before genre-specific work. AGENTS.md in the working directory is the writing rulebook and takes precedence for details.
+              suffix: Your working directory is {{cwd}}.
+
+          # 让 AGENTS.md 生效：规则手册就是这个插件读进来的
+          - id: agent-instructions
+            name: "@deepseek-ai/dsh-agent-instructions"
+            config:
+              maxBytes: 65536
+
+          # 命令行：只留给文档生成（python-docx / 结构检查）。
+          # 不装 bash，Windows 上保留 pwsh（macOS/Linux 请改成 tool-bash）。
+          - id: tool-pwsh
+            name: "@deepseek-ai/dsh-tool-pwsh"
+
+          - id: tool-fs
+            name: "@deepseek-ai/dsh-tool-fs"
+          - id: tool-fs-search
+            name: "@deepseek-ai/dsh-tool-fs-search"
+            config:
+              sampleOverCapGlobResults: false
+          - id: tool-ask-user
+            name: "@deepseek-ai/dsh-tool-ask-user"
+          - id: tool-todo
+            name: "@deepseek-ai/dsh-tool-todo"
+            config:
+              allowParallelInProgress: true
+
+          # 联网：引用核查靠它
+          - id: tool-web
+            name: "@deepseek-ai/dsh-tool-web"
+            config:
+              fetch: true
+              searchTimeoutMs: 60000
+
+          # 技能：把写作根目录挂上去
+          - id: skill-filesystem
+            name: "@deepseek-ai/dsh-skill-filesystem"
+            config:
+              customSkillDirs:
+                - '<WRITING_ROOT>/skills'
+          - id: tool-skill
+            name: "@deepseek-ai/dsh-tool-skill"
+
+          # 长文压缩：写长篇小说/论文时会触发，避免上下文爆掉
+          - id: compaction
+            name: cordis:group
+            group: true
+            isolate:
+              compaction: true
+              toolResultPruner: true
+            config:
+              - id: compaction-basic
+                name: "@deepseek-ai/dsh-compaction-basic"
+              - id: command-compact
+                name: "@deepseek-ai/dsh-command-compact"
+              - id: tool-result-pruner
+                name: "@deepseek-ai/dsh-compaction-tool-result-pruner"
+                config:
+                  thresholdChars: 8192
+                  headChars: 4096
+                  tailChars: 1024
+
+          # 交付文件
+          - id: present
+            name: "@deepseek-ai/dsh-tool-present"
